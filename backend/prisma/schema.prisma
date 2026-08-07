@@ -1,0 +1,240 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---- Enums ----
+
+enum ScholarshipType {
+  NACIONAL
+  INTERNACIONAL
+}
+
+enum Coverage {
+  TOTAL
+  PARCIAL
+}
+
+enum ScholarshipStatus {
+  VIGENTE
+  CERRADA
+  PROXIMA
+}
+
+enum RequirementType {
+  SABER11_MIN
+  GPA_MIN
+  LANGUAGE
+  SISBEN
+  STRATUM
+  OTHER
+}
+
+enum EntityType {
+  GOBIERNO
+  UNIVERSIDAD
+  PRIVADA
+  FUNDACION
+  ORG_INTL
+}
+
+enum UniversityType {
+  PUBLICA
+  PRIVADA
+}
+
+enum ProgramLevel {
+  TECNICO
+  TECNOLOGO
+  PREGRADO
+  POSGRADO
+  MAESTRIA
+  DOCTORADO
+}
+
+enum SourceType {
+  SCRAPER
+  API
+  MANUAL
+  CSV
+}
+
+enum AdminRole {
+  SUPERADMIN
+  EDITOR
+}
+
+// ---- Modelos ----
+
+model Department {
+  id        Int          @id @default(autoincrement())
+  name      String       @unique
+  daneCode  String       @unique @map("dane_code")
+  universities University[]
+  scholarships ScholarshipDepartment[]
+
+  @@map("departments")
+}
+
+model Entity {
+  id          Int        @id @default(autoincrement())
+  name        String
+  type        EntityType
+  acronym     String?
+  website     String?
+  scholarships Scholarship[]
+
+  @@map("entities")
+}
+
+model Source {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
+  baseUrl     String?    @map("base_url")
+  type        SourceType
+  scrapeConfig Json?     @map("scrape_config")
+  lastRunAt   DateTime?  @map("last_run_at")
+  active      Boolean    @default(true)
+  scholarships Scholarship[]
+
+  @@map("sources")
+}
+
+model Scholarship {
+  id              Int               @id @default(autoincrement())
+  title           String
+  slug            String            @unique
+  type            ScholarshipType
+  coverage        Coverage
+  description     String?
+  officialUrl     String            @map("official_url")
+  applicationUrl  String?           @map("application_url")
+  openingDate     DateTime?         @map("opening_date")
+  closingDate     DateTime?         @map("closing_date")
+  status          ScholarshipStatus @default(PROXIMA)
+  needsReview     Boolean           @default(true) @map("needs_review")
+  continents      String[]          @default([]) @map("continents")
+  providerId      Int?              @map("provider_id")
+  sourceId        Int?              @map("source_id")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  provider        Entity?           @relation(fields: [providerId], references: [id])
+  source          Source?           @relation(fields: [sourceId], references: [id])
+  requirements    ScholarshipRequirement[]
+  departments     ScholarshipDepartment[]
+
+  @@index([status])
+  @@index([type])
+  @@index([closingDate])
+  @@index([needsReview])
+  @@map("scholarships")
+}
+
+model Requirement {
+  id    Int             @id @default(autoincrement())
+  type  RequirementType
+  label String
+  value Json
+  scholarships ScholarshipRequirement[]
+
+  @@map("requirements")
+}
+
+model ScholarshipRequirement {
+  scholarshipId Int @map("scholarship_id")
+  requirementId Int @map("requirement_id")
+
+  scholarship Scholarship @relation(fields: [scholarshipId], references: [id], onDelete: Cascade)
+  requirement Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+
+  @@id([scholarshipId, requirementId])
+  @@map("scholarship_requirements")
+}
+
+model ScholarshipDepartment {
+  scholarshipId Int @map("scholarship_id")
+  departmentId  Int @map("department_id")
+
+  scholarship Scholarship @relation(fields: [scholarshipId], references: [id], onDelete: Cascade)
+  department  Department  @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@id([scholarshipId, departmentId])
+  @@map("scholarship_departments")
+}
+
+model University {
+  id                  Int           @id @default(autoincrement())
+  name                String
+  type                UniversityType
+  departmentId        Int           @map("department_id")
+  city                String
+  accreditation       Boolean       @default(false)
+  accreditationDetail String?       @map("accreditation_detail")
+  accreditationType   String?       @map("accreditation_type")
+  website             String?
+  rankingUnirank      Int?          @map("ranking_unirank")
+  rankingQsWorld      String?       @map("ranking_qs_world")
+  rankingQsLatam      String?       @map("ranking_qs_latam")
+  foundedYear         Int?          @map("founded_year")
+  description         String?
+  featuredPrograms    String[]      @map("featured_programs")
+  highlightedPrograms String?       @map("highlighted_programs")
+  enrollmentUrl       String?       @map("enrollment_url")
+  notes               String?
+  department          Department    @relation(fields: [departmentId], references: [id])
+  programs            Program[]
+  admissionProcesses  AdmissionProcess[]
+
+  @@index([departmentId])
+  @@index([type])
+  @@index([accreditation])
+  @@map("universities")
+}
+
+model Program {
+  id            Int          @id @default(autoincrement())
+  universityId  Int          @map("university_id")
+  name          String
+  level         ProgramLevel
+  accredited    Boolean      @default(false)
+  sniesCode     String?      @map("snies_code")
+  areaKnowledge String?      @map("area_knowledge")
+  university    University   @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  admissionProcesses AdmissionProcess[]
+
+  @@index([universityId])
+  @@index([level])
+  @@map("programs")
+}
+
+model AdmissionProcess {
+  id              Int        @id @default(autoincrement())
+  universityId    Int        @map("university_id")
+  programId       Int?       @map("program_id")
+  steps           Json
+  registrationUrl String?    @map("registration_url")
+  cost            Decimal?   @db.Decimal(10, 2)
+  currency        String     @default("COP")
+  calendar        Json
+  university      University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  program         Program?   @relation(fields: [programId], references: [id])
+
+  @@index([universityId])
+  @@map("admission_processes")
+}
+
+model AdminUser {
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  role         AdminRole @default(EDITOR)
+  refreshToken String?   @map("refresh_token")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@map("admin_users")
+}
