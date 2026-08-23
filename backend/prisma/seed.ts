@@ -1,9 +1,10 @@
+import 'dotenv/config';
 import { PrismaClient, AdminRole } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as argon2 from 'argon2';
 import { UNIVERSITIES_SEED } from './universitiesData';
 
-process.env.DATABASE_URL = 'postgresql://becas:becas123@localhost:5433/becas';
+process.env.DATABASE_URL = process.env.DATABASE_URL ?? 'postgresql://becas:becas123@localhost:5433/becas';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });

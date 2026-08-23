@@ -2,6 +2,7 @@ import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { IngestScholarshipDto } from './dto/ingest-scholarship.dto';
 import { ScholarshipStatus } from '@prisma/client';
+import { classifyProviderType } from './provider-classifier';
 import slugify from 'slugify';
 
 @Injectable()
@@ -19,6 +20,7 @@ export class IngestService {
       opening_date,
       closing_date,
       provider_name,
+      provider_type,
       source_name,
       requirements = [],
       department_codes = [],
@@ -39,27 +41,56 @@ export class IngestService {
         where: { name: provider_name },
     });
     if (!entity) {
+        const inferredType = (provider_type ?? classifyProviderType(provider_name)) as any;
         entity = await this.prisma.entity.create({
-        data: { name: provider_name, type: 'GOBIERNO' },
+        data: { name: provider_name, type: inferredType },
         });
     }
     providerId = entity.id;
     }
 
-    // 3. Generar slug único
-    const baseSlug = slugify(title, { lower: true, strict: true });
-    const existing = await this.prisma.scholarship.findFirst({
-      where: { officialUrl: official_url },
+    // 3. Generar slug único y deducir si es actualización de beca existente
+    const normalizeTitle = (t: string) =>
+      t
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '')
+        .trim();
+
+    const normalizedNewTitle = normalizeTitle(title);
+
+    // Buscar si ya existe la MISMA beca para ESTA fuente (universidad) por título normalizado
+    const existingCandidates = await this.prisma.scholarship.findMany({
+      where: { sourceId: source.id },
+      select: { id: true, slug: true, title: true, officialUrl: true },
     });
 
-    let slug = baseSlug;
-    if (!existing) {
-      const count = await this.prisma.scholarship.count({
-        where: { slug: { startsWith: baseSlug } },
-      });
-      if (count > 0) slug = `${baseSlug}-${count + 1}`;
-    } else {
+    const existing = existingCandidates.find(
+      (c) => normalizeTitle(c.title) === normalizedNewTitle,
+    );
+
+    let slug: string;
+    if (existing) {
       slug = existing.slug;
+    } else {
+      // Generar slug único garantizado globalmente
+      const baseSlug = slugify(title, { lower: true, strict: true }) || 'beca';
+      const takenSlugs = new Set(
+        (
+          await this.prisma.scholarship.findMany({
+            where: { slug: { startsWith: baseSlug } },
+            select: { slug: true },
+          })
+        ).map((s) => s.slug),
+      );
+
+      slug = baseSlug;
+      let counter = 1;
+      while (takenSlugs.has(slug)) {
+        counter++;
+        slug = `${baseSlug}-${counter}`;
+      }
     }
 
     // 4. Upsert Scholarship

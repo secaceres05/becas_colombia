@@ -1,6 +1,8 @@
 import { getScholarships } from '@/lib/api';
 import InternacionalesClient from './InternacionalesClient';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   title: 'Becas Internacionales 2025 | Becas Colombia',
   description: 'Becas internacionales para colombianos: Fulbright, DAAD, Chevening, OEA, Colfuturo y más. Filtra por continente y país destino.',
@@ -15,7 +17,17 @@ export const metadata = {
 };
 
 export default async function InternacionalesPage() {
-  const { data: becas } = await getScholarships({ type: 'INTERNACIONAL', limit: '50' }).catch(() => ({ data: [] }));
+  let allBecas: any[] = [];
+  let page = 1;
+  const limit = 100;
 
-  return <InternacionalesClient becas={becas ?? []} />;
+  while (true) {
+    const response = await getScholarships({ type: 'INTERNACIONAL', limit: limit.toString(), page: page.toString() }).catch(() => ({ data: [], meta: { totalPages: 0 } }));
+    if (!response.data || response.data.length === 0) break;
+    allBecas = [...allBecas, ...response.data];
+    if (page >= (response.meta?.totalPages ?? 1)) break;
+    page++;
+  }
+
+  return <InternacionalesClient becas={allBecas} />;
 }

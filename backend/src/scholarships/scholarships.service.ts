@@ -25,7 +25,9 @@ export class ScholarshipsService {
       sort = 'closing_date',
     } = filters;
 
-    const where: Prisma.ScholarshipWhereInput = {};
+    const where: Prisma.ScholarshipWhereInput = {
+      needsReview: false,
+    };
 
     if (type) where.type = type;
     if (coverage) where.coverage = coverage;
@@ -69,7 +71,7 @@ export class ScholarshipsService {
         some: {
           requirement: {
             type: 'GPA_MIN',
-            value: { path: ['min_gpa'], lte: max_gpa_required },
+            value: { path: ['min_score'], lte: max_gpa_required },
           },
         },
       };

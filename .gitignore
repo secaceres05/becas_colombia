@@ -3,7 +3,7 @@ node_modules/
 .pnp/
 .pnp.js
 
-# Environment — NUNCA commitear credenciales
+# Environment � NUNCA commitear credenciales
 .env
 .env.local
 .env.production
@@ -47,3 +47,23 @@ redis_data/
 
 # Testing
 coverage/
+
+# Backups y dumps de base de datos (NO subir al repo)
+backups/
+*.sql
+*.dump
+*.bak
+
+# Scripts temporales de limpieza/migración (incidente puntual)
+_temp_scripts/
+
+# Base de datos locales SQLite (estado de ejecución, no código)
+*.db
+*.sqlite
+*.sqlite3
+
+# Directorios locales de datos/backups
+backups/
+
+# Herramientas MCP locales (no código del proyecto)
+.playwright-mcp/
