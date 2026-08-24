@@ -60,6 +60,10 @@ _temp_scripts/**
 !_temp_scripts/**/
 !_temp_scripts/**/*.py
 !_temp_scripts/**/*.ts
+!_temp_scripts/**/*.js
+!_temp_scripts/**/*.md
+!_temp_scripts/**/poetry.lock
+!_temp_scripts/**/scrapy.cfg
 
 # Base de datos locales SQLite (estado de ejecución, no código)
 *.db
