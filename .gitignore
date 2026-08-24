@@ -54,8 +54,12 @@ backups/
 *.dump
 *.bak
 
-# Scripts temporales de limpieza/migración (incidente puntual)
-_temp_scripts/
+# Scripts de migracion/recuperacion: se suben .py/.ts (valor historico),
+# se excluyen salidas de datos (.txt/.log) y bases locales
+_temp_scripts/**
+!_temp_scripts/**/
+!_temp_scripts/**/*.py
+!_temp_scripts/**/*.ts
 
 # Base de datos locales SQLite (estado de ejecución, no código)
 *.db
