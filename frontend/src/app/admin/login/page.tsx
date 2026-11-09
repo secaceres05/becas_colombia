@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function AdminLoginPage() {
@@ -9,6 +9,23 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/admin/route-handlers/auth/refresh', { method: 'POST' });
+        if (res.ok) {
+          router.replace('/admin');
+          router.refresh();
+          return;
+        }
+      } catch {}
+      if (!cancelled) setChecking(false);
+    })();
+    return () => { cancelled = true; };
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,6 +52,16 @@ export default function AdminLoginPage() {
       setError('No pudimos conectar con el servidor. Intenta de nuevo.');
       setLoading(false);
     }
+  }
+
+  if (checking) {
+    return (
+      <main style={{
+        minHeight: 'calc(100vh - 56px)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <p style={{ fontSize: '0.9rem', color: 'var(--muted)' }}>Restaurando tu sesión…</p>
+      </main>
+    );
   }
 
   return (

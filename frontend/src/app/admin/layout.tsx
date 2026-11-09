@@ -8,13 +8,23 @@ export const metadata = {
   robots: { index: false, follow: false },
 };
 
+function tokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
+    return typeof payload.exp === 'number' && payload.exp * 1000 < Date.now();
+  } catch {
+    return true;
+  }
+}
+
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = (await headers()).get('x-pathname') ?? '';
   const isLoginPage = pathname === '/admin/login';
   const token = (await cookies()).get('admin_token')?.value;
+  const hasValidToken = !!token && !tokenExpired(token);
 
-  if (!token && !isLoginPage) redirect('/admin/login');
-  if (token && isLoginPage) redirect('/admin');
+  if (!hasValidToken && !isLoginPage) redirect('/admin/login');
+  if (hasValidToken && isLoginPage) redirect('/admin');
 
   if (isLoginPage) {
     return (

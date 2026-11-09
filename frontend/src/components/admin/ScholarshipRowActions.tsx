@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { adminFetch } from '@/lib/adminFetch';
 
 export default function ScholarshipRowActions({ id, needsReview }: { id: number; needsReview: boolean }) {
   const router = useRouter();
@@ -11,9 +12,11 @@ export default function ScholarshipRowActions({ id, needsReview }: { id: number;
   function publish() {
     setError('');
     startTransition(async () => {
-      const res = await fetch(`/admin/route-handlers/scholarships/${id}/publish`, { method: 'PATCH' });
+      const res = await adminFetch(`/admin/route-handlers/scholarships/${id}/publish`, { method: 'PATCH' });
       if (!res.ok) {
-        setError('No se pudo publicar.');
+        setError(res.status === 401
+          ? 'Tu sesión expiró. Inicia sesión de nuevo.'
+          : 'No se pudo publicar.');
         return;
       }
       router.refresh();
@@ -24,9 +27,11 @@ export default function ScholarshipRowActions({ id, needsReview }: { id: number;
     if (!window.confirm('¿Eliminar esta beca? Esta acción no se puede deshacer.')) return;
     setError('');
     startTransition(async () => {
-      const res = await fetch(`/admin/route-handlers/scholarships/${id}`, { method: 'DELETE' });
+      const res = await adminFetch(`/admin/route-handlers/scholarships/${id}`, { method: 'DELETE' });
       if (!res.ok) {
-        setError('No se pudo eliminar.');
+        setError(res.status === 401
+          ? 'Tu sesión expiró. Inicia sesión de nuevo.'
+          : 'No se pudo eliminar.');
         return;
       }
       router.refresh();

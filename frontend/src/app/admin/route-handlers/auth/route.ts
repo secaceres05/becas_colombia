@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const API_URL = process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:9000';
 const COOKIE_NAME = 'admin_token';
+const REFRESH_COOKIE_NAME = 'admin_refresh';
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
@@ -35,6 +36,13 @@ export async function POST(request: NextRequest) {
     path: '/',
     maxAge: 60 * 15,
   });
+  response.cookies.set(REFRESH_COOKIE_NAME, data.refreshToken, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'strict',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 7,
+  });
 
   return response;
 }
@@ -42,5 +50,6 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const response = NextResponse.redirect(new URL('/admin/login', request.url));
   response.cookies.delete(COOKIE_NAME);
+  response.cookies.delete(REFRESH_COOKIE_NAME);
   return response;
 }
