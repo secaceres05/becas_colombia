@@ -15,7 +15,11 @@ export const metadata = {
 };
 
 export default async function Home() {
-  const { data: becas } = await getScholarships({ limit: '3', status: 'VIGENTE' }).catch(() => ({ data: [] }));
+  const [{ data: becas }, { meta }] = await Promise.all([
+    getScholarships({ limit: '3', status: 'VIGENTE' }).catch(() => ({ data: [] })),
+    getScholarships({ limit: '1', status: 'VIGENTE' }).catch(() => ({ meta: { total: 0 } })),
+  ]);
+  const totalVigentes = meta?.total ?? 0;
 
   return (
     <main>
@@ -43,11 +47,11 @@ export default async function Home() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: '16px', marginBottom: '18px', flexWrap: 'wrap' }}>
-            <span style={{
-              fontFamily: "'Barlow Condensed', sans-serif",
-              fontSize: 'clamp(5.5rem,12vw,9.5rem)',
-              fontWeight: 900, color: 'var(--yellow)', lineHeight: 0.85,
-            }}>127</span>
+                      <span style={{
+                        fontFamily: "'Barlow Condensed', sans-serif",
+                        fontSize: 'clamp(5.5rem,12vw,9.5rem)',
+                        fontWeight: 900, color: 'var(--yellow)', lineHeight: 0.85,
+                      }}>{totalVigentes}</span>
             <span style={{
               fontFamily: "'Barlow Condensed', sans-serif",
               fontSize: 'clamp(2rem,4vw,3.1rem)',
