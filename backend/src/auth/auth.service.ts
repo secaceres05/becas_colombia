@@ -1,28 +1,34 @@
-import {
-  Injectable,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, OnModuleInit, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
+import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
+  // Hash de una contraseña aleatoria, con los mismos parámetros que los hashes reales (seed).
+  // Se verifica contra él cuando el correo no existe, para que el tiempo de respuesta no lo delate.
+  private dummyHash!: string;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
   ) {}
 
+  async onModuleInit() {
+    this.dummyHash = await argon2.hash(randomBytes(32).toString('hex'));
+  }
+
   async login(dto: LoginDto) {
     const user = await this.prisma.adminUser.findUnique({
       where: { email: dto.email },
     });
-    if (!user) throw new NotFoundException('Usuario no encontrado');
 
-    const valid = await argon2.verify(user.passwordHash, dto.password);
-    if (!valid) throw new UnauthorizedException('Contraseña incorrecta');
+    // Siempre se ejecuta un argon2.verify y siempre se responde lo mismo,
+    // exista o no el correo.
+    const valid = await argon2.verify(user?.passwordHash ?? this.dummyHash, dto.password);
+    if (!user || !valid) throw new UnauthorizedException('Credenciales inválidas');
 
     const payload = { sub: user.id, email: user.email, role: user.role };
 
