@@ -14,6 +14,9 @@ export const metadata = {
   },
 };
 
+// Evita prerenderizar en el build (el backend no existe en ese momento); el fetch sigue cacheado 5 min.
+export const dynamic = 'force-dynamic';
+
 export default async function Home() {
   const [{ data: becas }, { meta }] = await Promise.all([
     getScholarships({ limit: '3', status: 'VIGENTE' }).catch(() => ({ data: [] })),

@@ -19,17 +19,17 @@ import { AdminModule } from './admin/admin.module';
       {
         name: 'short',
         ttl: 60000,
-        limit: 10,
+        limit: Number(process.env.THROTTLE_SHORT_LIMIT ?? 10),
       },
       {
         name: 'medium',
         ttl: 300000,
-        limit: 50,
+        limit: Number(process.env.THROTTLE_MEDIUM_LIMIT ?? 50),
       },
       {
         name: 'long',
         ttl: 3600000,
-        limit: 100,
+        limit: Number(process.env.THROTTLE_LONG_LIMIT ?? 100),
       },
     ]),
     PrismaModule,

@@ -14,6 +14,9 @@ export const metadata = {
   },
 };
 
+// Evita prerenderizar en el build (el backend no existe en ese momento); el fetch sigue cacheado 5 min.
+export const dynamic = 'force-dynamic';
+
 export default async function UniversidadesPage() {
   const { data: universities } = await getUniversities().catch(() => ({ data: [] }));
 
