@@ -76,3 +76,9 @@ backups/
 
 # Herramientas MCP locales (no código del proyecto)
 .playwright-mcp/
+# Environment: ignorar todo .env salvo las plantillas de ejemplo
+.env
+.env.*
+*.env
+!.env.example
+!.env.production.example
