@@ -51,6 +51,7 @@ coverage/
 # Backups y dumps de base de datos (NO subir al repo)
 backups/
 *.sql
+!backend/prisma/migrations/*/migration.sql
 *.dump
 *.bak
 
