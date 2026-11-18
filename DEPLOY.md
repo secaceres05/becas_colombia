@@ -8,36 +8,9 @@ Cambios respecto al plan anterior:
 - **Caddy en vez de Nginx + certbot**: mismo resultado (HTTPS con Let's Encrypt) sin el problema de arrancar Nginx antes de tener certificado.
 - **Sin Redis**: `REDIS_URL` no se usa en ningún archivo de `backend/src`, así que no se despliega.
 
-## 1. Subir estos archivos al repo (PowerShell, en tu PC)
+Todo lo necesario (Dockerfiles, `docker-compose.prod.yml`, `Caddyfile`, `.env.production.example`) ya está en `main`: el flujo empieza directamente en el VPS.
 
-```powershell
-cd C:\Users\Sebastian\Documents\becas-colombia\becas-colombia
-if (Test-Path backend\prisma.config.ts) { Move-Item backend\prisma.config.ts backend\prisma.config.ts.bak }
-git pull
-Expand-Archive -Path $HOME\Downloads\deploy-pack.zip -DestinationPath . -Force
-git apply predeploy.patch
-Remove-Item predeploy.patch
-git status -s
-```
-
-El `Move-Item` aparta tu `prisma.config.ts` local sin commitear: Juan ya subió el suyo y `git pull` se negaría a sobrescribir el tuyo. Cuando termines puedes borrar el `.bak`.
-
-`git status` debe mostrar Dockerfiles, `docker-compose.prod.yml`, `Caddyfile`, `.env.production.example` y 4 archivos modificados. **No** debe aparecer ningún `.env`.
-
-```powershell
-git add -A
-git commit -m "chore: despliegue con Docker + Caddy; JWT sin fallback; limites throttle por env"
-git push
-```
-
-Si `git apply` falla, tu copia local difiere de GitHub: pásame el error.
-
-Qué hace `predeploy.patch`:
-- `jwt.strategy.ts`: el backend ya no arranca sin `JWT_SECRET` (antes usaba `'fallback_secret'`).
-- `app.module.ts`: los límites globales de rate limiting leen variables de entorno. Con el valor por defecto (10/min por IP) todo el sitio se bloquearía, porque todo el tráfico llega al backend desde el contenedor del frontend, es decir, desde una sola IP. Login, refresh e ingest conservan sus límites estrictos.
-- `page.tsx` y `universidades/page.tsx`: `force-dynamic`. Sin esto, el build de Docker (sin backend) deja la home en 0 becas y el directorio vacío durante minutos.
-
-## 2. Preparar el VPS (Ubuntu 24.04)
+## 1. Preparar el VPS (Ubuntu 24.04)
 
 ```bash
 ssh root@IP_DEL_VPS
@@ -55,14 +28,17 @@ exit
 
 Entra como `deploy` (`ssh deploy@IP_DEL_VPS`) para el resto.
 
-## 3. Dominio
+## 2. Dominio
 
 En el DNS de tu registrador crea un registro **A**: `becascolombia.com` → IP del VPS (y otro para `www`).
 Comprueba que propagó: `dig +short becascolombia.com` debe devolver la IP.
 
-Para probar antes de tener dominio pon `DOMAIN=:80` en el `.env` del paso 4 y abre `http://IP_DEL_VPS` (sin SSL). Ojo: en ese modo el login de `/admin` no funciona desde el navegador, porque las cookies de sesión son `Secure` y el navegador las descarta sobre HTTP (salvo en `localhost`). El sitio público sí se puede revisar.
+Para probar antes de tener dominio (en el `.env` del paso 3):
 
-## 4. Configurar
+- **Con HTTPS (recomendado):** `DOMAIN=<IP-con-puntos>.sslip.io`, por ejemplo `DOMAIN=203.0.113.10.sslip.io`, y abre `https://203.0.113.10.sslip.io`. sslip.io resuelve ese nombre a la IP del VPS, así que Caddy emite un certificado real de Let's Encrypt. Requiere el puerto 80 abierto (ya lo abre el paso 1), porque Let's Encrypt valida por HTTP. El login de admin funciona igual que con el dominio final.
+- **Sin SSL:** `DOMAIN=:80` y abre `http://IP_DEL_VPS`. Ojo: en este modo **el login de `/admin` no funciona** desde el navegador, porque las cookies de sesión son `Secure` y el navegador las descarta sobre HTTP (salvo en `localhost`). Solo sirve para revisar el sitio público.
+
+## 3. Configurar
 
 ```bash
 git clone https://github.com/secaceres05/becas-colombia.git
@@ -75,7 +51,7 @@ nano .env
 
 Pega un valor distinto en cada uno de: `POSTGRES_PASSWORD`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `SCRAPER_API_KEY`. Rellena `DOMAIN`, `ADMIN_SEED_EMAIL` y `ADMIN_SEED_PASSWORD` (larga y única).
 
-## 5. Levantar
+## 4. Levantar
 
 ```bash
 docker compose up -d --build
@@ -85,7 +61,7 @@ docker compose logs -f backend
 
 Al arrancar, el backend ejecuta `prisma migrate deploy` solo (crea las tablas y aplica las migraciones pendientes) y después levanta la API. El backend debe quedar `healthy`. Si falla al arrancar, revisa `docker compose logs backend`: casi siempre falta una variable del `.env` o falló una migración.
 
-## 6. Base de datos
+## 5. Base de datos
 
 La migración `20261118000000_seed_public_catalog` (commit de Juan del 17 de noviembre) ya incluye las **310 becas** del catálogo público (304 vigentes y 6 cerradas), con sus entidades, fuentes, requisitos y departamentos. No hace falta el dump.
 
@@ -100,7 +76,7 @@ docker compose exec backend npx prisma db seed
 
 Ambos pasos son idempotentes: puedes repetirlos sin duplicar datos. Probé las cuatro migraciones en orden sobre un Postgres vacío: quedan 310 becas, 0 admins y 0 universidades hasta que corre el seed.
 
-## 7. Verificar
+## 6. Verificar
 
 ```bash
 curl -I https://becascolombia.com
